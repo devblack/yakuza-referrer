@@ -1,0 +1,33 @@
+<section class="section">
+    <h2>Leaving Referrer Yakuza</h2>
+
+    <p class="notice">
+        You are about to be redirected to an external website.
+    </p>
+
+    <p class="target">
+        <strong>Target:</strong> <span class="url">{{target}}</span>
+    </p>
+
+    <p class="disclaimer">
+        Referrer Yakuza does not control, store, or monitor the content of external
+        websites and is not responsible for their content or privacy practices.
+    </p>
+
+    <div class="actions">
+        <a class="continue" href="{{target}}" rel="noopener noreferrer">
+            Continue
+        </a>
+        <a class="cancel" href="/">
+            Cancel
+        </a>
+    </div>
+
+    {{#if autoRedirect}}
+    <p class="auto">
+        You will be redirected automatically in {{delay}} seconds.
+    </p>
+
+    <meta http-equiv="refresh" content="{{delay}};url={{target}}">
+    {{/if}}
+</section>
