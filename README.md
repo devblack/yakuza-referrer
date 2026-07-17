@@ -1,227 +1,168 @@
-# 🔐 Yakuza Referrer
+# Yakuza Referrer
 
-A simple and secure URL referral and redirection service with encryption. Protect your referral links and control access with time-limited, encrypted URLs.
+A URL referral and redirection service with AES-256-GCM encrypted links and automatic expiration.
 
-## ✨ Features
+## Features
 
-- 🔒 **AES-256-GCM Encryption** - Military-grade encryption for URL protection
-- ⏰ **Time-Limited URLs** - Automatic expiration with configurable TTL
-- 🛡️ **Tamper-Proof** - Authentication tags prevent URL manipulation
-- 🚀 **Fast & Lightweight** - Minimal dependencies, maximum performance
-- 🎨 **Clean Interface** - Simple referral page with auto-redirect
-- 🔑 **Base64URL Encoding** - URL-safe encrypted strings
+- AES-256-GCM encrypted URLs with configurable expiration
+- Tamper-proof authentication tags
+- Base64URL-safe encoded hashes
+- Referrer page with auto-redirect before destination
+- In-memory operation, no database, no cookies, no logging
 
-## 📋 Prerequisites
+## Prerequisites
 
-- Node.js 18+ (for native test runner and modern features)
-- npm or yarn
+- Node.js 18+
+- npm
 
-## 🚀 Quick Start
-
-### Installation
+## Quick Start
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/yakuza-referrer.git
 cd yakuza-referrer
-
-# Install dependencies
 npm install
-
-# Create environment file
 cp .env.example .env
 ```
 
 ### Configuration
 
-Create a `.env` file in the root directory:
-
 ```env
 SECRET_REFERRER=your-super-secret-key-here-change-this
-NODE_ENV=production
 PORT=3000
 ```
 
-⚠️ **Important:** Change the `SECRET_REFERRER` to a strong, random string in production!
+`SECRET_REFERRER` must be set before the app starts. It is read once at module load.
 
-### Running the Application
+### Running
 
 ```bash
-# Development mode
-npm run dev
-
-# Production mode
-npm start
-
-# Run tests
-npm test
+npm run dev    # development
+npm start      # production
+npm test       # run tests
 ```
 
-## 📖 Usage
+## Usage
 
 ### Encrypting URLs
 
 ```javascript
-import { encryptUrl } from './utils/crypto.js';
-
-// Encrypt a URL with 1-hour expiration
-const url = 'https://example.com/affiliate?ref=123';
-const expiresInSeconds = 3600; // 1 hour
-const encryptedHash = encryptUrl(url, expiresInSeconds);
-
-console.log(`https://yourdomain.com/url/${encryptedHash}`);
-```
-
-### API Endpoints
-
-#### Redirect to Encrypted URL
-
-```
-GET /url/:encryptedHash
-```
-
-**Example:**
-```
-GET /url/AbCdEf123...xyz
-```
-
-**Response:**
-- **200** - Renders referral page with auto-redirect
-- **400** - Invalid URL format
-- **500** - Expired or invalid hash
-
-### Creating Encrypted Links
-
-```javascript
-const crypto = require('crypto');
+import crypto from "crypto";
 
 function encryptUrl(url, expiresAt) {
   const SECRET = process.env.SECRET_REFERRER;
-  const key = crypto.createHash('sha256').update(SECRET).digest();
+  const key = crypto.createHash("sha256").update(SECRET).digest();
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
 
   const payload = `${url}|${expiresAt}`;
   const encrypted = Buffer.concat([
-    cipher.update(payload, 'utf8'),
+    cipher.update(payload, "utf8"),
     cipher.final(),
   ]);
   const authTag = cipher.getAuthTag();
 
   const combined = Buffer.concat([iv, encrypted, authTag]);
   return combined
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
 }
 
-// Example: Create URL that expires in 24 hours
-const targetUrl = 'https://example.com/product?ref=xyz';
+// Create URL that expires in 24 hours
 const expiresAt = Math.floor(Date.now() / 1000) + 86400;
-const hash = encryptUrl(targetUrl, expiresAt);
+const hash = encryptUrl("https://example.com/product?ref=xyz", expiresAt);
 
-console.log(`Encrypted URL: https://yourdomain.com/url/${hash}`);
+console.log(`https://yourdomain.com/url/${hash}`);
 ```
 
-## 🔒 Security Features
+### Endpoints
 
-### Encryption Details
+| Route | Description |
+|-------|-------------|
+| `GET /` | Landing page |
+| `GET /url/:encryptedHash` | Referrer page with redirect to destination |
+| `GET /privacy` | Privacy policy |
+| `GET /tos` | Terms of service |
 
-- **Algorithm:** AES-256-GCM (Galois/Counter Mode)
-- **Key Derivation:** SHA-256 hash of secret
-- **IV Length:** 12 bytes (96 bits)
-- **Auth Tag:** 16 bytes (128 bits)
-- **Encoding:** Base64URL (URL-safe)
+### Response Codes
 
-### URL Format
+| Code | Meaning |
+|------|---------|
+| 200 | Referrer page rendered with auto-redirect |
+| 400 | Invalid link (bad payload or tampered hash) |
+| 410 | Link expired |
+| 404 | Page not found |
+| 500 | Internal error |
+
+## Encryption
+
+### Format
 
 ```
-[IV (12 bytes)][Ciphertext (variable)][Auth Tag (16 bytes)]
+[IV 12B][Ciphertext][Auth Tag 16B]
 ```
 
-Encrypted payload contains:
+Base64URL-encoded. Plaintext payload:
+
 ```
-url|unix_timestamp
+url|unixTimestamp
 ```
 
-### Security Best Practices
+### Details
 
-1. **Use a strong SECRET_REFERRER** - At least 32 random characters
-2. **Rotate secrets periodically** - Change encryption key regularly
-3. **Set appropriate expiration times** - Don't make URLs valid forever
-4. **Use HTTPS in production** - Protect encrypted URLs in transit
-5. **Monitor for abuse** - Track usage patterns and rate limit if needed
+| Property | Value |
+|----------|-------|
+| Algorithm | AES-256-GCM |
+| Key derivation | SHA-256 of `SECRET_REFERRER` |
+| IV length | 12 bytes |
+| Auth tag | 16 bytes |
+| Encoding | Base64URL |
 
-## 🧪 Testing
+## Error Handling
+
+| Error | HTTP Status | Description |
+|-------|-------------|-------------|
+| `BadPayload` | 400 | Malformed or corrupted encrypted data |
+| `InvalidHash` | 400 | Authentication tag verification failed |
+| `ExpiredUrl` | 410 | URL has passed its expiration time |
+
+Error details are never exposed to clients.
+
+## Testing
 
 ```bash
-# Run all tests
 npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run tests in watch mode
-npm run test:watch
 ```
 
-### Test Coverage
+Uses Node.js built-in test runner (`node:test` + `node:assert`).
+Tests run with `--env-file=.env.test` to set `SECRET_REFERRER` for the test environment.
 
-- ✅ URL encryption/decryption
-- ✅ Expiration validation
-- ✅ Tamper detection
-- ✅ Invalid input handling
-- ✅ Express route handlers
-- ✅ Error scenarios
+## Project Structure
 
-## 🐛 Error Handling
+```
+server.js              # Entrypoint, loads dotenv, starts server
+src/
+  app.js               # Express app, routes, error handling
+  helpers/
+    Decryptor.js       # AES-256-GCM decryption + expiry check
+  errors/
+    CryptoErrors.js    # BadPayload, ExpiredUrl, InvalidHash
+  views/
+    *.handlebars       # Handlebars templates
+public/
+  css/                 # Stylesheets
+  images/              # Static images
+  js/                  # Client-side scripts
+test/
+  hash.test.js         # Unit and route tests
+```
 
-The service throws specific errors for different scenarios:
+## License
 
-- **`BadPayload`** - Malformed or corrupted encrypted data
-- **`ExpiredUrl`** - URL has passed its expiration time
-- **`InvalidHash`** - Authentication tag verification failed
+MIT
 
-## 📊 Performance
+## Support
 
-- **Encryption:** ~0.1ms per URL
-- **Decryption:** ~0.2ms per URL
-- **Memory:** Minimal overhead, stateless operation
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built with Node.js and Express
-- Uses native Node.js crypto module
-- Inspired by the need for secure referral link management
-
-## 📧 Support
-
-For issues and questions:
-- Open an issue on GitHub
+- [GitHub Issues](https://github.com/yourusername/yakuza-referrer/issues)
 - Telegram: @s3xyp0w3r
-
-## 🔄 Changelog
-
-### v1.0.0 (2025-12-19)
-- Initial release
-- AES-256-GCM encryption
-- Time-based expiration
-- Express.js integration
-- Comprehensive test suite
-
----
