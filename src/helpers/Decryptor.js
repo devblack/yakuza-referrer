@@ -14,7 +14,7 @@ export function decryptUrl(hash) {
     const raw = b64urlDecode(hash);
 
     if (raw.length < 12 + 16) {
-      throw new BadPayload("INVALID HASH URL!");
+      throw new BadPayload("Invalid hash format or missing required data");
     }
 
     const iv = raw.subarray(0, 12);
@@ -28,20 +28,20 @@ export function decryptUrl(hash) {
     const authTag = data.subarray(data.length - 16);
 
     if (authTag.length !== 16) {
-      throw new BadPayload("INVALID HASH URL!");
+      throw new BadPayload("Invalid authentication tag length");
     }
 
     decipher.setAuthTag(authTag);
 
     const decrypted = decipher.update(ciphertext, undefined, "utf8") + decipher.final("utf8");
     const sep = decrypted.lastIndexOf("|");
-    if (sep === -1) throw new BadPayload("INVALID HASH URL!");
+    if (sep === -1) throw new BadPayload("Malformed payload: missing separator");
 
     const message = decrypted.slice(0, sep);
     const expiresAt = Number(decrypted.slice(sep + 1));
 
-    if (Date.now() / 1000 > expiresAt) {
-      throw new ExpiredUrl("INVALID HASH URL!");
+    if (!Number.isFinite(expiresAt) || Date.now() / 1000 > expiresAt) {
+      throw new ExpiredUrl("URL has expired");
     }
 
     return message;
@@ -52,7 +52,7 @@ export function decryptUrl(hash) {
       msg.includes("unable to authenticate") ||
       msg.includes("Unsupported state")
     ) {
-      throw new InvalidHash("INVALID HASH URL!");
+      throw new InvalidHash("Authentication tag verification failed");
     }
     throw err;
   }

@@ -482,6 +482,76 @@ h6 {
     }
 }
 
+/* 40x Client Error Styles */
+.error-40x {
+    max-width: 800px;
+    margin: 0 auto 100px;
+    padding: 40px;
+    min-height: calc(100vh - 300px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.error-40x .error-code {
+    color: #ffa500;
+    text-shadow: 0 0 10px #ffa500;
+    animation: glow-orange 2s ease-in-out infinite;
+}
+
+@keyframes glow-orange {
+    0%, 100% {
+        text-shadow: 0 0 10px #ffa500;
+    }
+    50% {
+        text-shadow: 0 0 20px #ffa500, 0 0 30px #ffa500;
+    }
+}
+
+@media (max-width: 768px) {
+    .error-40x {
+        padding: 20px;
+        min-height: calc(100vh - 250px);
+    }
+
+    .error-40x .error-code {
+        font-size: 80px;
+    }
+
+    .error-40x .error-title {
+        font-size: 28px;
+        margin: 15px 0 10px;
+    }
+
+    .error-40x .error-message {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .error-40x {
+        padding: 15px;
+    }
+
+    .error-40x .error-code {
+        font-size: 60px;
+    }
+
+    .error-40x .error-title {
+        font-size: 22px;
+        letter-spacing: 1px;
+    }
+
+    .error-40x .error-message {
+        font-size: 13px;
+    }
+
+    .error-40x .error-subtext {
+        font-size: 12px;
+    }
+}
+
 /* 50x Server Error Styles */
 .error-50x {
     max-width: 800px;

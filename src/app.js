@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import express from "express";
 import { engine } from "express-handlebars";
 import { decryptUrl } from "./helpers/Decryptor.js";
+import { ExpiredUrl, InvalidHash, BadPayload } from "./errors/CryptoErrors.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,20 +61,35 @@ app.get("/url/:target", (req, res) => {
 
     res.render("referrer", {
       title: "Referrer . . .",
-      target: decodeURIComponent(targetUrl),
+      target: targetUrl,
       autoRedirect: true,
       delay: 10,
     });
   } catch (error) {
-    // error messages in production
-    const errorMsg =
-      process.env.NODE_ENV === "production"
-        ? "An error occurred"
-        : error.message;
+    if (error instanceof ExpiredUrl) {
+      return res.status(410).render("40x", {
+        title: "Link Expired",
+        error: "This link has expired and is no longer valid.",
+      });
+    }
+
+    if (error instanceof BadPayload) {
+      return res.status(400).render("40x", {
+        title: "Invalid Link",
+        error: "This link is invalid or corrupted.",
+      });
+    }
+
+    if (error instanceof InvalidHash) {
+      return res.status(400).render("40x", {
+        title: "Tampered Link",
+        error: "This link has been tampered with or is invalid.",
+      });
+    }
 
     res.status(500).render("50x", {
       title: "Error",
-      error: errorMsg,
+      error: "An error occurred",
     });
   }
 });

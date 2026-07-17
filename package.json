@@ -5,8 +5,8 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node server.js --env-file=.env",
+    "dev": "node server.js --env-file=.env",
     "test": "node --env-file=.env.test --test"
   },
   "keywords": [

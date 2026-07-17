@@ -128,17 +128,15 @@ describe("decryptUrl", () => {
 });
 
 describe("Express Route: GET /url/:target", () => {
-  let originalSecret, originalEnv;
+  let originalSecret;
 
   before(() => {
     originalSecret = process.env.SECRET_REFERRER;
-    originalEnv = process.env.NODE_ENV;
     process.env.SECRET_REFERRER = "test-secret-key";
   });
 
   after(() => {
     process.env.SECRET_REFERRER = originalSecret;
-    process.env.NODE_ENV = originalEnv;
   });
 
   // Mock request and response objects
@@ -161,7 +159,7 @@ describe("Express Route: GET /url/:target", () => {
 
   const routeHandler = (req, res) => {
     try {
-      const targetUrl = decodeURIComponent(decryptUrl(req.params.target));
+      const targetUrl = decryptUrl(req.params.target);
       try {
         new URL(targetUrl);
       } catch {
@@ -177,13 +175,30 @@ describe("Express Route: GET /url/:target", () => {
         delay: 10,
       });
     } catch (error) {
-      const errorMsg =
-        process.env.NODE_ENV === "production"
-          ? "An error occurred"
-          : error.message;
+      if (error instanceof ExpiredUrl) {
+        return res.status(410).render("40x", {
+          title: "Link Expired",
+          error: "This link has expired and is no longer valid.",
+        });
+      }
+
+      if (error instanceof BadPayload) {
+        return res.status(400).render("40x", {
+          title: "Invalid Link",
+          error: "This link is invalid or corrupted.",
+        });
+      }
+
+      if (error instanceof InvalidHash) {
+        return res.status(400).render("40x", {
+          title: "Tampered Link",
+          error: "This link has been tampered with or is invalid.",
+        });
+      }
+
       res.status(500).render("50x", {
         title: "Error",
-        error: errorMsg,
+        error: "An error occurred",
       });
     }
   };
@@ -231,7 +246,7 @@ describe("Express Route: GET /url/:target", () => {
     assert.strictEqual(res.rendered.data.error, "Invalid URL format");
   });
 
-  it("should return 500 for expired URLs", () => {
+  it("should return 410 for expired URLs", () => {
     const { req, res } = createMocks();
     const url = "https://example.com";
     const expiresAt = Math.floor(Date.now() / 1000) - 3600;
@@ -240,36 +255,17 @@ describe("Express Route: GET /url/:target", () => {
     req.params.target = hash;
     routeHandler(req, res);
 
-    assert.strictEqual(res.statusCode, 500);
-    assert.strictEqual(res.rendered.view, "50x");
+    assert.strictEqual(res.statusCode, 410);
+    assert.strictEqual(res.rendered.view, "40x");
+    assert.strictEqual(res.rendered.data.title, "Link Expired");
   });
 
-  it("should return 500 for invalid hash", () => {
+  it("should return 400 for invalid hash", () => {
     const { req, res } = createMocks();
     req.params.target = "invalid-hash";
     routeHandler(req, res);
 
-    assert.strictEqual(res.statusCode, 500);
-    assert.strictEqual(res.rendered.view, "50x");
-  });
-
-  it("should hide error details in production mode", () => {
-    process.env.NODE_ENV = "production";
-    const { req, res } = createMocks();
-    req.params.target = "invalid-hash";
-    routeHandler(req, res);
-
-    assert.strictEqual(res.statusCode, 500);
-    assert.strictEqual(res.rendered.data.error, "An error occurred");
-  });
-
-  it("should show error details in non-production mode", () => {
-    process.env.NODE_ENV = "development";
-    const { req, res } = createMocks();
-    req.params.target = "invalid-hash";
-    routeHandler(req, res);
-
-    assert.strictEqual(res.statusCode, 500);
-    assert.notStrictEqual(res.rendered.data.error, "An error occurred");
+    assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual(res.rendered.view, "40x");
   });
 });
